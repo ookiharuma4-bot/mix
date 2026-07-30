@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>ミックス</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #fafaf7;
+    --panel: #ffffff;
+    --panel-2: #f2f2ee;
+    --line: #e6e6df;
+    --text: #26281f;
+    --muted: #8b8d80;
+    --accent: #2f7a4d;
+    --accent-dim: #6ca583;
+    --amber: #b5791f;
+    --bubble-mine: #2f7a4d;
+    --bubble-other: #ffffff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'JetBrains Mono','Noto Sans JP',monospace;
+    overscroll-behavior-y:none;
+  }
+
+  /* ---- app shell: mobile default (single column, view toggled) ---- */
+  .app{
+    display:flex;
+    height:100vh; height:100dvh;
+    max-width:480px; margin:0 auto;
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+  }
+  .sidebar, .main{
+    width:100%; flex:0 0 100%;
+    height:100%;
+    display:none;
+    flex-direction:column;
+    min-width:0;
+  }
+  .app.view-list .sidebar{display:flex;}
+  .app.view-thread .main{display:flex;}
+
+  /* ---- wide screens: same single-screen layout as mobile, just sized up ---- */
+  @media (min-width:640px){
+    .app{
+      max-width:600px;
+    }
+  }
+  @media (min-width:1000px){
+    .app{
+      max-width:680px;
+    }
+  }
+
+  /* top bar */
+  .topbar{
+    flex:0 0 auto;
+    display:flex; align-items:center; gap:10px;
+    padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 12px;
+    border-bottom:1px solid var(--line);
+    background:var(--panel);
+  }
+  .topbar .icon-btn{
+    width:34px; height:34px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    border:none; background:transparent; color:var(--accent);
+    font-size:20px; cursor:pointer; border-radius:8px;
+  }
+  .topbar .icon-btn:active{background:var(--panel-2);}
+  .topbar-title{
+    flex:1; font-weight:800; font-size:18px; color:var(--accent);
+    display:flex; align-items:baseline; gap:8px;
+    min-width:0;
+  }
+  .cursor{
+    display:inline-block;width:8px;height:14px;background:var(--accent);
+    animation:blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink{50%{opacity:0;}}
+  .topbar-sub{font-size:10px; color:var(--muted); font-weight:400;}
+  .add-fab{
+    width:38px; height:38px; flex:0 0 auto; border-radius:10px;
+    border:1px solid var(--accent); background:var(--panel); color:var(--accent);
+    font-size:22px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .add-fab:active{background:var(--accent); color:#fff;}
+
+  /* search */
+  .search-bar{
+    flex:0 0 auto; padding:8px 14px; background:var(--panel);
+    border-bottom:1px solid var(--line);
+  }
+  .search-bar input{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    font-family:inherit; font-size:12.5px; padding:8px 10px; border-radius:9px;
+  }
+  .search-bar input:focus{outline:none; border-color:var(--accent-dim); background:var(--panel);}
+
+  /* thread list (chat list style) */
+  .scroll-area{flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  .chat-list-item{
+    display:flex; align-items:center; gap:12px;
+    padding:13px 14px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .chat-list-item:active{background:var(--panel-2);}
+  .chat-list-item.active{background:var(--panel-2); box-shadow:inset 3px 0 0 var(--accent);}
+  @media (hover:hover){
+    .chat-list-item:hover{background:var(--panel-2);}
+  }
+  .avatar{
+    width:42px; height:42px; border-radius:50%; flex:0 0 auto;
+    background:var(--panel-2); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; color:var(--accent); font-size:15px;
+  }
+  .chat-list-main{flex:1; min-width:0;}
+  .chat-list-title{font-weight:700; font-size:14.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .chat-list-preview{font-size:12px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .chat-list-side{flex:0 0 auto; text-align:right;}
+  .chat-list-time{font-size:10px; color:var(--muted);}
+  .chat-list-badge{
+    margin-top:4px; display:inline-block; min-width:18px; padding:2px 5px;
+    background:var(--accent); color:#fff; font-size:10px; font-weight:700;
+    border-radius:9px; text-align:center;
+  }
+  .empty{font-size:12px; color:var(--muted); padding:50px 20px; text-align:center;}
+
+  /* main-panel empty state (desktop, no thread selected) */
+  .main-empty{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; color:var(--muted); font-size:12.5px; text-align:center; padding:20px;
+  }
+  .main-empty .mark{font-size:28px; color:var(--accent-dim);}
+
+  /* chat/thread view */
+  .chat-scroll{
+    flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:14px 12px 10px;
+    display:flex; flex-direction:column; gap:8px;
+    background:
+      radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/16px 16px,
+      var(--bg);
+  }
+  .thread-title-banner{
+    text-align:center; font-size:11px; color:var(--muted);
+    background:var(--panel-2); border:1px solid var(--line);
+    padding:6px 10px; border-radius:10px; margin:0 auto 6px; max-width:90%;
+  }
+  .bubble-row{display:flex; flex-direction:column; max-width:78%;}
+  .bubble-row.mine{align-self:flex-end; align-items:flex-end;}
+  .bubble-row.other{align-self:flex-start; align-items:flex-start;}
+  .bubble-meta{font-size:10px; color:var(--muted); margin-bottom:2px; padding:0 4px; display:flex; gap:6px;}
+  .bubble-meta .bname{color:var(--amber); font-weight:700;}
+  .bubble{
+    padding:9px 12px; border-radius:14px; font-size:13.5px; line-height:1.55;
+    white-space:pre-wrap; word-break:break-word;
+    box-shadow:0 1px 1px rgba(0,0,0,0.03);
+  }
+  .bubble-row.other .bubble{
+    background:var(--bubble-other); border:1px solid var(--line);
+    border-top-left-radius:4px; color:var(--text);
+  }
+  .bubble-row.mine .bubble{
+    background:var(--bubble-mine); color:#fff;
+    border-top-right-radius:4px;
+  }
+  .bubble-time{font-size:9.5px; color:var(--muted); margin-top:2px; padding:0 4px;}
+  .bubble-img{
+    display:block; max-width:220px; max-height:220px; width:100%; height:auto;
+    border-radius:10px; object-fit:cover; cursor:pointer;
+  }
+  .bubble-img + .bubble-text{margin-top:6px;}
+
+  /* composer */
+  .composer{
+    flex:0 0 auto;
+    display:flex; align-items:flex-end; gap:8px;
+    padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);
+    border-top:1px solid var(--line);
+    background:var(--panel);
+  }
+  .composer .icon-btn{
+    width:38px; height:38px; flex:0 0 auto;
+    border:none; background:transparent; color:var(--accent);
+    font-size:18px; cursor:pointer; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .composer .icon-btn:active{background:var(--panel-2);}
+  .attach-preview{
+    flex:0 0 auto; padding:8px 12px 0; background:var(--panel);
+    display:flex; align-items:center; gap:8px;
+  }
+  .attach-preview img{
+    width:52px; height:52px; object-fit:cover; border-radius:8px; border:1px solid var(--line);
+  }
+  .attach-preview .remove-attach{
+    font-size:11px; color:var(--muted); background:var(--panel-2); border:1px solid var(--line);
+    border-radius:8px; padding:4px 8px; cursor:pointer;
+  }
+  .composer textarea{
+    flex:1; resize:none; border:1px solid var(--line); background:var(--panel-2);
+    border-radius:18px; padding:10px 14px; font-family:inherit; font-size:13.5px;
+    color:var(--text); max-height:100px; line-height:1.4;
+  }
+  .composer textarea:focus{outline:none; border-color:var(--accent-dim); background:var(--panel);}
+  .send-btn{
+    flex:0 0 auto; width:40px; height:40px; border-radius:50%;
+    border:none; background:var(--accent); color:#fff; font-size:16px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .send-btn:disabled{opacity:.4;}
+  .send-btn:active:not(:disabled){transform:scale(0.93);}
+
+  /* modal */
+  .modal-overlay{
+    position:absolute; inset:0; background:rgba(38,40,31,0.4);
+    display:flex; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .modal{
+    width:100%; max-width:480px; background:var(--panel); border-top:1px solid var(--line);
+    padding:16px 18px calc(env(safe-area-inset-bottom,0px) + 18px);
+    border-radius:16px 16px 0 0;
+  }
+  @media (min-width:860px){
+    .modal-overlay{ align-items:center; }
+    .modal{ border-radius:16px; border:1px solid var(--line); box-shadow:0 10px 40px rgba(0,0,0,0.15); }
+  }
+  .modal-title-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+  .modal-title{font-size:13px; color:var(--amber); font-weight:700; letter-spacing:.04em;}
+  .close-x{cursor:pointer; color:var(--muted); font-size:18px; padding:2px 8px;}
+  label.field-label{display:block; font-size:11px; color:var(--muted); margin:10px 0 4px;}
+  input[type=text], .modal textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    font-family:inherit; font-size:14px; padding:10px 12px; border-radius:10px; resize:vertical;
+  }
+  input[type=text]:focus, .modal textarea:focus{outline:none; border-color:var(--accent-dim); background:var(--panel);}
+  .modal textarea{min-height:80px;}
+  .btn{
+    margin-top:14px; width:100%; background:var(--accent); border:none; color:#fff;
+    font-family:inherit; font-size:13px; font-weight:700; padding:12px 16px; border-radius:10px; cursor:pointer;
+  }
+  .btn:disabled{opacity:.45;}
+  .attach-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    font-family:inherit; font-size:11.5px; padding:8px 12px; border-radius:9px; cursor:pointer;
+  }
+  .attach-btn:active{background:var(--panel);}
+
+  .name-tag{
+    font-size:10px; color:var(--muted); padding:6px 14px; text-align:center; flex:0 0 auto; background:var(--panel);
+  }
+  .name-tag button{
+    background:none; border:none; color:var(--accent); font-family:inherit; font-size:10px; font-weight:700; cursor:pointer; text-decoration:underline;
+  }
+</style>
+</head>
+<body>
+<div class="app view-list" id="app">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main" id="main"></div>
+  <div id="modal-root"></div>
+</div>
+
+<script>
+// スレッド・レスなどの「共有データ」は、このパソコンで起動しているサーバー(server.js)に保存し、
+// 名前や匿名IDなどの「個人データ」は端末内 localStorage に保存するハイブリッド実装。
+// これにより、同じサーバーにアクセスすれば、スマホ・パソコンどちらからでも同じスレッドが見られます。
+window.storage = (function(){
+  function ns(){ return 'mixboard:local:'; }
+
+  function localGet(key){
+    return new Promise(function(resolve){
+      try{
+        var raw = localStorage.getItem(ns() + key);
+        resolve(raw === null ? null : { key: key, value: raw, shared:false });
+      }catch(e){ resolve(null); }
+    });
+  }
+  function localSet(key, value){
+    return new Promise(function(resolve){
+      try{
+        localStorage.setItem(ns() + key, value);
+        resolve({ key: key, value: value, shared:false });
+      }catch(e){ resolve(null); }
+    });
+  }
+  function localDelete(key){
+    return new Promise(function(resolve){
+      try{
+        var k = ns() + key;
+        var existed = localStorage.getItem(k) !== null;
+        localStorage.removeItem(k);
+        resolve({ key: key, deleted: existed, shared:false });
+      }catch(e){ resolve(null); }
+    });
+  }
+  function localList(prefix){
+    return new Promise(function(resolve){
+      try{
+        var p = ns() + (prefix || '');
+        var keys = [];
+        for(var i=0;i<localStorage.length;i++){
+          var k = localStorage.key(i);
+          if(k.indexOf(p) === 0){ keys.push(k.slice(ns().length)); }
+        }
+        resolve({ keys: keys, prefix: prefix || undefined, shared:false });
+      }catch(e){ resolve({ keys: [], prefix: prefix || undefined, shared:false }); }
+    });
+  }
+
+  function qs(params){
+    return Object.keys(params).filter(function(k){ return params[k] !== undefined; })
+      .map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
+      .join('&');
+  }
+  async function serverGet(key){
+    try{
+      const res = await fetch('/api/storage?' + qs({ key: key }));
+      if(res.status === 404) return null;
+      if(!res.ok) return null;
+      return await res.json();
+    }catch(e){ console.error('server get failed', e); return null; }
+  }
+  async function serverSet(key, value){
+    try{
+      const res = await fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key, value: value })
+      });
+      if(!res.ok) return null;
+      return await res.json();
+    }catch(e){ console.error('server set failed', e); return null; }
+  }
+  async function serverDelete(key){
+    try{
+      const res = await fetch('/api/storage?' + qs({ key: key }), { method: 'DELETE' });
+      if(!res.ok) return null;
+      return await res.json();
+    }catch(e){ console.error('server delete failed', e); return null; }
+  }
+  async function serverList(prefix){
+    try{
+      const res = await fetch('/api/storage/list?' + qs({ prefix: prefix }));
+      if(!res.ok) return { keys: [] };
+      return await res.json();
+    }catch(e){ console.error('server list failed', e); return { keys: [] }; }
+  }
+
+  return {
+    get: function(key, shared){ return shared ? serverGet(key) : localGet(key); },
+    set: function(key, value, shared){ return shared ? serverSet(key, value) : localSet(key, value); },
+    delete: function(key, shared){ return shared ? serverDelete(key) : localDelete(key); },
+    list: function(prefix, shared){ return shared ? serverList(prefix) : localList(prefix); }
+  };
+})();
+</script>
+<script>
+(function(){
+  const appEl = document.getElementById('app');
+  const sidebarEl = document.getElementById('sidebar');
+  const mainEl = document.getElementById('main');
+  const modalRootEl = document.getElementById('modal-root');
+
+  let view = 'list'; // controls which pane shows on narrow (mobile) screens
+  let currentThreadId = null;
+  let threadsList = [];
+  let currentThread = null;
+  let loading = true;
+  let posting = false;
+  let showNewThreadModal = false;
+  let myName = '';
+  let pollTimer = null;
+  let searchQuery = '';
+  let composerImage = null;
+  let newThreadImage = null;
+
+  function fileToCompressedDataUrl(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 900;
+          let w = img.width, h = img.height;
+          if(w > maxDim || h > maxDim){
+            if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+            else{ w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const sessionSeed = Math.random().toString(36).slice(2, 10);
+  function anonId(threadId){
+    let h = 0;
+    const s = sessionSeed + (threadId||'');
+    for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) >>> 0; }
+    return h.toString(36).slice(0,8);
+  }
+
+  function fmtClock(ts){
+    const d = new Date(ts);
+    const p = n => String(n).padStart(2,'0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  function relTime(ts){
+    const diff = Math.floor((Date.now() - ts)/1000);
+    if(diff < 60) return 'たった今';
+    if(diff < 3600) return Math.floor(diff/60)+'分前';
+    if(diff < 86400) return Math.floor(diff/3600)+'時間前';
+    return Math.floor(diff/86400)+'日前';
+  }
+  function esc(s){
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+  function initials(title){
+    return (title||'?').trim().slice(0,1).toUpperCase();
+  }
+
+  async function loadThreadsList(){
+    try{
+      const res = await window.storage.get('threads-list', true);
+      return res ? JSON.parse(res.value) : [];
+    }catch(e){ return []; }
+  }
+  async function saveThreadsList(list){
+    try{ await window.storage.set('threads-list', JSON.stringify(list), true); }
+    catch(e){ console.error('save list failed', e); }
+  }
+  async function loadThread(id){
+    try{
+      const res = await window.storage.get('thread:'+id, true);
+      return res ? JSON.parse(res.value) : null;
+    }catch(e){ return null; }
+  }
+  async function saveThread(thread){
+    try{ await window.storage.set('thread:'+thread.id, JSON.stringify(thread), true); }
+    catch(e){ console.error('save thread failed', e); }
+  }
+
+  // preserve in-progress typing across polling re-renders
+  function captureInputs(){
+    const c = {};
+    ['reply-body','new-title','new-name','new-body','search-input'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) c[id] = { value: el.value, focus: document.activeElement === el, selStart: el.selectionStart, selEnd: el.selectionEnd };
+    });
+    return c;
+  }
+  function restoreInputs(c){
+    Object.keys(c).forEach(id=>{
+      const el = document.getElementById(id);
+      if(el && c[id]){
+        el.value = c[id].value;
+        if(c[id].focus){
+          el.focus();
+          try{ el.setSelectionRange(c[id].selStart, c[id].selEnd); }catch(e){}
+        }
+      }
+    });
+  }
+
+  async function init(){
+    loading = true; render();
+    threadsList = await loadThreadsList();
+    loading = false;
+    render();
+    startPolling();
+  }
+
+  function startPolling(){
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(async ()=>{
+      if(showNewThreadModal) return;
+      const fresh = await loadThreadsList();
+      if(JSON.stringify(fresh) !== JSON.stringify(threadsList)){
+        threadsList = fresh;
+        const cap = captureInputs();
+        renderSidebar();
+        restoreInputs(cap);
+      }
+      if(currentThreadId){
+        const freshThread = await loadThread(currentThreadId);
+        if(freshThread && (!currentThread || freshThread.posts.length !== currentThread.posts.length)){
+          const wasAtBottom = isChatScrolledToBottom();
+          currentThread = freshThread;
+          const cap = captureInputs();
+          renderMain();
+          restoreInputs(cap);
+          if(wasAtBottom) scrollChatToBottom();
+        }
+      }
+    }, 3000);
+  }
+
+  function isChatScrolledToBottom(){
+    const el = document.getElementById('chat-scroll');
+    if(!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }
+  function scrollChatToBottom(){
+    const el = document.getElementById('chat-scroll');
+    if(el) el.scrollTop = el.scrollHeight;
+  }
+
+  async function openThread(id){
+    currentThreadId = id;
+    view = 'thread';
+    loading = true; render();
+    currentThread = await loadThread(id);
+    loading = false;
+    render();
+    scrollChatToBottom();
+  }
+
+  function backToList(){
+    view = 'list';
+    appEl.className = 'app view-list';
+  }
+
+  async function createThread(title, name, body, image){
+    if(!title.trim() || (!body.trim() && !image)) return;
+    posting = true; renderModal();
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    const now = Date.now();
+    if(name.trim()) myName = name.trim();
+    const previewText = body.trim() || (image ? '📷 画像' : '');
+    const thread = {
+      id, title: title.trim(), createdAt: now,
+      posts: [{ no:1, name: myName || '名無しさん', id: anonId(id), timestamp: now, body: body.trim(), image: image || null }]
+    };
+    await saveThread(thread);
+    threadsList.unshift({ id, title: thread.title, createdAt: now, lastReplyAt: now, resCount: 1, lastBody: previewText });
+    await saveThreadsList(threadsList);
+    posting = false;
+    showNewThreadModal = false;
+    newThreadImage = null;
+    await openThread(id);
+  }
+
+  async function addReply(body, image){
+    if(!body.trim() && !image) return;
+    if(!currentThread) return;
+    posting = true;
+    const now = Date.now();
+    const no = currentThread.posts.length + 1;
+    const previewText = body.trim() || (image ? '📷 画像' : '');
+    currentThread.posts.push({ no, name: myName || '名無しさん', id: anonId(currentThread.id), timestamp: now, body: body.trim(), image: image || null });
+    await saveThread(currentThread);
+    const list = await loadThreadsList();
+    const meta = list.find(t => t.id === currentThread.id);
+    if(meta){ meta.lastReplyAt = now; meta.resCount = currentThread.posts.length; meta.lastBody = previewText; }
+    list.sort((a,b)=> b.lastReplyAt - a.lastReplyAt);
+    threadsList = list;
+    await saveThreadsList(list);
+    posting = false;
+    render();
+    scrollChatToBottom();
+  }
+
+
+  function promptName(){
+    const n = window.prompt('表示する名前を入力（空欄で「名無しさん」）', myName);
+    if(n !== null){ myName = n.trim(); renderSidebar(); }
+  }
+
+  function sidebarHtml(){
+    let html = `
+      <div class="topbar">
+        <div class="topbar-title">ミックス<span class="cursor"></span></div>
+        <button class="add-fab" id="open-modal-btn">＋</button>
+      </div>
+      <div class="name-tag">名前: <b>${esc(myName || '名無しさん')}</b> <button id="change-name-btn">変更</button></div>
+    `;
+    html += `
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="スレを検索" value="${esc(searchQuery)}">
+      </div>
+    `;
+    const q = searchQuery.trim().toLowerCase();
+    const filtered = !q ? threadsList : threadsList.filter(t =>
+      (t.title||'').toLowerCase().includes(q) || (t.lastBody||'').toLowerCase().includes(q)
+    );
+
+    if(loading && threadsList.length === 0){
+      html += `<div class="scroll-area"><div class="empty">読み込み中...</div></div>`;
+    } else if(threadsList.length === 0){
+      html += `<div class="scroll-area"><div class="empty">まだトークがありません。<br>右上の「＋」から作成できます。</div></div>`;
+    } else if(filtered.length === 0){
+      html += `<div class="scroll-area"><div class="empty">「${esc(searchQuery)}」に一致するトークが見つかりません。</div></div>`;
+    } else {
+      html += `<div class="scroll-area" id="thread-list">`;
+      filtered.forEach(t=>{
+        const active = t.id === currentThreadId ? ' active' : '';
+        html += `
+          <div class="chat-list-item${active}" data-id="${esc(t.id)}">
+            <div class="avatar">${esc(initials(t.title))}</div>
+            <div class="chat-list-main">
+              <div class="chat-list-title">${esc(t.title)}</div>
+              <div class="chat-list-preview">${esc(t.lastBody || '')}</div>
+            </div>
+            <div class="chat-list-side">
+              <div class="chat-list-time">${relTime(t.lastReplyAt)}</div>
+              <div class="chat-list-badge">${t.resCount}</div>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+    return html;
+  }
+
+  function mainHtml(){
+    if(!currentThreadId){
+      return `
+        <div class="main-empty">
+          <div class="mark">▶◀</div>
+          左のリストからトークを選ぶか、<br>新しいトークを作成してください。
+        </div>
+      `;
+    }
+    const title = currentThread ? currentThread.title : '...';
+    let html = `
+      <div class="topbar">
+        <button class="icon-btn back-link" id="back-link">‹</button>
+        <div class="topbar-title" style="font-size:15px;">${esc(title)}<div class="topbar-sub">${currentThread ? currentThread.posts.length+' 件のメッセージ' : ''}</div></div>
+      </div>
+    `;
+    if(loading || !currentThread){
+      html += `<div class="scroll-area"><div class="empty">${loading ? '読み込み中...' : 'トークが見つかりません'}</div></div>`;
+    } else {
+      html += `<div class="chat-scroll" id="chat-scroll">`;
+      html += `<div class="thread-title-banner">トーク開始 ・ ${new Date(currentThread.createdAt).toLocaleDateString('ja-JP')}</div>`;
+      const myId = anonId(currentThread.id);
+      currentThread.posts.forEach(p=>{
+        const mine = p.id === myId;
+        const imgHtml = p.image ? `<img class="bubble-img" src="${p.image}" alt="添付画像">` : '';
+        const textHtml = p.body ? `<div class="bubble-text">${esc(p.body)}</div>` : '';
+        html += `
+          <div class="bubble-row ${mine ? 'mine':'other'}">
+            ${!mine ? `<div class="bubble-meta"><span class="bname">${esc(p.name)}</span><span>ID:${esc(p.id)}</span></div>` : ''}
+            <div class="bubble">${imgHtml}${textHtml}</div>
+            <div class="bubble-time">${fmtClock(p.timestamp)}</div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+      if(composerImage){
+        html += `
+          <div class="attach-preview">
+            <img src="${composerImage}" alt="添付プレビュー">
+            <button class="remove-attach" id="reply-image-remove">画像を外す</button>
+          </div>
+        `;
+      }
+      html += `
+        <div class="composer">
+          <input type="file" id="reply-image-input" accept="image/*" style="display:none">
+          <button class="icon-btn" id="reply-image-btn" title="画像を添付">📷</button>
+          <textarea id="reply-body" placeholder="メッセージを入力..." rows="1" maxlength="2000"></textarea>
+          <button class="send-btn" id="reply-btn" ${posting?'disabled':''}>➤</button>
+        </div>
+      `;
+    }
+    return html;
+  }
+
+  function modalHtml(){
+    if(!showNewThreadModal) return '';
+    const previewHtml = newThreadImage ? `
+      <div class="attach-preview" style="padding-left:0;">
+        <img src="${newThreadImage}" alt="添付プレビュー">
+        <button class="remove-attach" id="new-image-remove">画像を外す</button>
+      </div>
+    ` : '';
+    return `
+      <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+          <div class="modal-title-row">
+            <div class="modal-title">新しいトーク</div>
+            <div class="close-x" id="close-modal-btn">✕</div>
+          </div>
+          <label class="field-label">タイトル</label>
+          <input type="text" id="new-title" maxlength="80" placeholder="トークのタイトル">
+          <label class="field-label">名前（任意）</label>
+          <input type="text" id="new-name" maxlength="30" placeholder="${esc(myName || '名無しさん')}" value="${esc(myName)}">
+          <label class="field-label">最初のメッセージ</label>
+          <textarea id="new-body" maxlength="2000" placeholder="内容を入力..."></textarea>
+          <input type="file" id="new-image-input" accept="image/*" style="display:none">
+          <button type="button" class="attach-btn" id="new-image-btn" style="margin-top:6px;">📷 画像を添付</button>
+          ${previewHtml}
+          <button class="btn" id="create-btn" ${posting?'disabled':''}>${posting?'作成中...':'トークを開始'}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSidebar(){
+    sidebarEl.innerHTML = sidebarHtml();
+    const openModalBtn = document.getElementById('open-modal-btn');
+    if(openModalBtn) openModalBtn.onclick = ()=>{ showNewThreadModal = true; renderModal(); };
+    const changeNameBtn = document.getElementById('change-name-btn');
+    if(changeNameBtn) changeNameBtn.onclick = promptName;
+    document.querySelectorAll('.chat-list-item').forEach(el=>{
+      el.onclick = ()=> openThread(el.getAttribute('data-id'));
+    });
+    const searchInput = document.getElementById('search-input');
+    if(searchInput){
+      searchInput.addEventListener('input', ()=>{
+        searchQuery = searchInput.value;
+        const cap = captureInputs();
+        renderSidebar();
+        restoreInputs(cap);
+      });
+    }
+  }
+
+  function renderMain(){
+    mainEl.innerHTML = mainHtml();
+    const backLink = document.getElementById('back-link');
+    if(backLink) backLink.onclick = backToList;
+    const replyBody = document.getElementById('reply-body');
+    const replyBtn = document.getElementById('reply-btn');
+    const doSend = ()=>{
+      if(!replyBody) return;
+      const val = replyBody.value;
+      if(!val.trim() && !composerImage) return;
+      replyBody.value = '';
+      const img = composerImage;
+      composerImage = null;
+      addReply(val, img);
+    };
+    if(replyBtn) replyBtn.onclick = doSend;
+    if(replyBody){
+      replyBody.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); doSend(); }
+      });
+      replyBody.addEventListener('input', ()=>{
+        replyBody.style.height = 'auto';
+        replyBody.style.height = Math.min(replyBody.scrollHeight, 100) + 'px';
+      });
+    }
+    const imgBtn = document.getElementById('reply-image-btn');
+    const imgInput = document.getElementById('reply-image-input');
+    if(imgBtn && imgInput) imgBtn.onclick = ()=> imgInput.click();
+    if(imgInput){
+      imgInput.addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        try{
+          composerImage = await fileToCompressedDataUrl(file);
+        }catch(err){ console.error('image read failed', err); }
+        const cap = captureInputs();
+        renderMain();
+        restoreInputs(cap);
+      });
+    }
+    const removeImgBtn = document.getElementById('reply-image-remove');
+    if(removeImgBtn) removeImgBtn.onclick = ()=>{
+      composerImage = null;
+      const cap = captureInputs();
+      renderMain();
+      restoreInputs(cap);
+    };
+  }
+
+  function renderModal(){
+    modalRootEl.innerHTML = modalHtml();
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    if(closeModalBtn) closeModalBtn.onclick = ()=>{ showNewThreadModal = false; newThreadImage = null; renderModal(); };
+    const overlay = document.getElementById('modal-overlay');
+    if(overlay) overlay.onclick = (e)=>{ if(e.target === overlay){ showNewThreadModal = false; newThreadImage = null; renderModal(); } };
+    const createBtn = document.getElementById('create-btn');
+    if(createBtn) createBtn.onclick = ()=>{
+      const title = document.getElementById('new-title').value;
+      const name = document.getElementById('new-name').value;
+      const body = document.getElementById('new-body').value;
+      createThread(title, name, body, newThreadImage);
+    };
+    const imgBtn = document.getElementById('new-image-btn');
+    const imgInput = document.getElementById('new-image-input');
+    if(imgBtn && imgInput) imgBtn.onclick = ()=> imgInput.click();
+    if(imgInput){
+      imgInput.addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        try{
+          newThreadImage = await fileToCompressedDataUrl(file);
+        }catch(err){ console.error('image read failed', err); }
+        const cap = captureInputs();
+        renderModal();
+        restoreInputs(cap);
+      });
+    }
+    const removeImgBtn = document.getElementById('new-image-remove');
+    if(removeImgBtn) removeImgBtn.onclick = ()=>{
+      newThreadImage = null;
+      const cap = captureInputs();
+      renderModal();
+      restoreInputs(cap);
+    };
+  }
+
+  function render(){
+    appEl.className = 'app ' + (view === 'thread' ? 'view-thread' : 'view-list');
+    renderSidebar();
+    renderMain();
+    renderModal();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
