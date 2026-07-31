@@ -2,17 +2,17 @@
 // 依存パッケージ不要（Node.js標準機能のみ）。データは同じフォルダの db.json に保存されます。
 //
 // 使い方: このフォルダで `node server.js` を実行し、表示されたアドレスにアクセスしてください。
-
+ 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const url = require('url');
-
+ 
 const PORT = process.env.PORT || 8787;
 const DB_FILE = path.join(__dirname, 'db.json');
-const PUBLIC_DIR = path.join(__dirname, 'public');
-
+const PUBLIC_DIR = __dirname;
+ 
 function loadDb(){
   try{
     return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
@@ -20,11 +20,11 @@ function loadDb(){
     return {};
   }
 }
-
+ 
 function saveDb(db){
   fs.writeFileSync(DB_FILE, JSON.stringify(db), 'utf8');
 }
-
+ 
 function sendJson(res, status, obj){
   const body = JSON.stringify(obj);
   res.writeHead(status, {
@@ -35,7 +35,7 @@ function sendJson(res, status, obj){
   });
   res.end(body);
 }
-
+ 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
@@ -46,7 +46,7 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon'
 };
-
+ 
 function serveStatic(req, res, pathname){
   let rel = pathname === '/' ? 'index.html' : pathname;
   let filePath = path.normalize(path.join(PUBLIC_DIR, rel));
@@ -60,7 +60,7 @@ function serveStatic(req, res, pathname){
     res.end(data);
   });
 }
-
+ 
 function getLocalIps(){
   const ifaces = os.networkInterfaces();
   const ips = [];
@@ -71,16 +71,16 @@ function getLocalIps(){
   });
   return ips;
 }
-
+ 
 const server = http.createServer((req, res) => {
   const parsed = url.parse(req.url, true);
   const pathname = parsed.pathname;
-
+ 
   if(req.method === 'OPTIONS'){
     sendJson(res, 204, {});
     return;
   }
-
+ 
   if(pathname === '/api/storage/list' && req.method === 'GET'){
     const prefix = parsed.query.prefix || '';
     const db = loadDb();
@@ -88,7 +88,7 @@ const server = http.createServer((req, res) => {
     sendJson(res, 200, { keys, prefix: prefix || undefined, shared: true });
     return;
   }
-
+ 
   if(pathname === '/api/storage' && req.method === 'GET'){
     const key = parsed.query.key;
     if(!key){ sendJson(res, 400, { error: 'key required' }); return; }
@@ -97,7 +97,7 @@ const server = http.createServer((req, res) => {
     sendJson(res, 200, { key, value: db[key], shared: true });
     return;
   }
-
+ 
   if(pathname === '/api/storage' && req.method === 'POST'){
     let body = '';
     let tooLarge = false;
@@ -122,7 +122,7 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-
+ 
   if(pathname === '/api/storage' && req.method === 'DELETE'){
     const key = parsed.query.key;
     if(!key){ sendJson(res, 400, { error: 'key required' }); return; }
@@ -133,10 +133,10 @@ const server = http.createServer((req, res) => {
     sendJson(res, 200, { key, deleted: existed, shared: true });
     return;
   }
-
+ 
   serveStatic(req, res, pathname);
 });
-
+ 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('=================================================');
