@@ -1,0 +1,10 @@
+{
+  "name": "mixboard-server",
+  "version": "1.0.0",
+  "description": "\u30df\u30c3\u30af\u30b9\u533f\u540d\u63b2\u793a\u677f\u306e\u30ed\u30fc\u30ab\u30eb\u30b5\u30fc\u30d0\u30fc",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "ISC"
+}
